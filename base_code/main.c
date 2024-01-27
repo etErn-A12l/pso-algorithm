@@ -4,8 +4,8 @@
 #include <omp.h>
 
 #define SWARM 10 // Number of particles
-#define D 30     // Number of dimensions
-#define MAX_ITER 100000
+#define D 1      // Number of dimensions
+#define MAX_ITER 100
 #define W 0.5 // Inertia Weight
 #define C1 2  // Acceleration Factor
 #define C2 2  // Acceleration Factor
@@ -18,6 +18,7 @@ typedef struct
     double bestPosition[D];
     double bestFit;
 } Particle;
+
 
 //======== Function Declarations ===========
 /*--------------------------------------*/
@@ -45,8 +46,8 @@ void initializeParticle(Particle *particle)
 {
     for (int i = 0; i < D; i++)
     {
-        particle->position[i] = ((double)rand() / (double)(RAND_MAX)) * (5 + 5) - 5; // Between -5 and 5
-        particle->velocity[i] = ((double)rand() / (double)(RAND_MAX)) * (1 - 0) + 0; // Between 0 and 1
+        particle->position[i] = ((double)rand() / (double)(RAND_MAX)) * (5.12 + 5.12) - 5.12; // Between -5 and 5
+        particle->velocity[i] = ((double)rand() / (double)(RAND_MAX)) * (1 - 0) + 0;          // Between 0 and 1
         particle->bestPosition[i] = particle->position[i];
     }
     particle->bestFit = INFINITY;
@@ -82,10 +83,17 @@ double evaluateFitness(double *position)
         F(x) = 10 * (x1 - 1) ^ 2 + 20 * (x2 - 2) ^ 2 + 30 * (x3 - 3) ^ 2
     */
     double sum = 0.0;
-    for (int i = 0; i < D; i++)
+    // for (int i = 0; i < D; i++)
+    // {
+    // sum += ((i + 1) * 10) * pow((position[i] - (i + 1)), 2.0);
+    // }
+    // sum += pow(position[0], 2.0) + pow(position[1], 2.0) - cos(18 * position[0]) - cos(18 * position[1]);
+    int n = 4;
+    for (int i = 0; i < n; i++) // n = 4
     {
-        sum += ((i + 1) * 10) * pow((position[i] - (i + 1)), 2.0);
+        sum += pow(position[0], 2.0) - 10 * cos(2 * 3.17 * position[0]);
     }
+    sum = sum + (10 * n);
     return sum;
 }
 
@@ -128,8 +136,8 @@ void pso()
         rankPrticles(&particles[i], &globalBest);
     }
 
-    // Main loop
-    #pragma omp parallel for schedule(static) // Using OpenMP for parallel computation
+// Main loop
+#pragma omp parallel for schedule(static) // Using OpenMP for parallel computation
     for (int iter = 0; iter < MAX_ITER; iter++)
     {
         for (int i = 0; i < SWARM; i++)
@@ -142,7 +150,6 @@ void pso()
 
             // Rank Particles
             rankPrticles(&particles[i], &globalBest);
-
         }
         printf("Itr = %d, Best = %f\n", iter, globalBest.bestFit);
     }
@@ -160,7 +167,7 @@ void pso()
 
 1. Initialize position and velocity
 2. Calculate fitnesses and global_best
-3. Update velocity and velocity
+3. Update velocity and position
 4. Calculate fitness and find global_best
 5. Increase iteration
 
