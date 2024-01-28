@@ -172,3 +172,5 @@ void pso()
 5. Increase iteration
 
 */
+
+// gcc main.c -fopenmp -lm -o code
