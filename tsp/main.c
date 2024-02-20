@@ -3,21 +3,25 @@
 #include <stdbool.h>
 #include <math.h>
 #include <time.h>
+#include <pthread.h>
 #include <omp.h>
 #include <assert.h>
 #include <string.h>
 
 #define SWARM 10 // Number of particles
-#define D 17     // Number of dimensions
+#define D 170    // Number of dimensions
 #define MAX_ITER 10000
-#define W 0.5    // Inertia Weight
-#define C1 2     // Acceleration Factor
-#define C2 2     // Acceleration Factor
-#define TEMP 100 // Initial Temperature
+#define W 0.5              // Inertia Weight
+#define C1 2               // Acceleration Factor
+#define C2 2               // Acceleration Factor
+#define TEMP 100           // Initial Temperature
+#define BEST_SOLUTION 2755 // Initial Temperature
+
+#define NUM_THREADS 6 // Maximum Threads
 
 // File Paths
-const char *data_file = "/home/eternal/Documents/CodeSpace/bat-algorithm/Datasets/br17.txt";
-const char *sol_file = "/home/xron/Drives/Docs_And_Media/Documents/Everything/Code-More/Application Development/Programming Languages/C/Others/HK mam TSP Prob 2/Solutions/ftv55_sol.txt";
+const char *data_file = "/home/eternal/Documents/CodeSpace/bat-algorithm/Datasets/ftv170.txt";
+const char *sol_file = "/home/eternal/Documents/CodeSpace/pso-algorithm/tsp/solutions/ftv170-20-02-2024.txt";
 
 // Structure to hold a particle's position and velocity
 typedef struct
@@ -27,6 +31,15 @@ typedef struct
     int bestPosition[D];
     long bestFit;
 } Particle;
+
+// Define a structure to pass arguments to the thread function
+struct ThreadArgs
+{
+    Particle *particles;
+    Particle *globalBest;
+    int startIndex;
+    int endIndex;
+};
 
 // Global variables
 int **matrix; // Cost Matrix
@@ -43,10 +56,11 @@ long cal_fitness(int[]);
 void pso();
 
 void reverse(int *, int, int);
-void apply_3_opt(int *, int, int, int);
 void Simul_Annel_3_Opt(int *, double, double);
 void InverseMutation(int *);
 void swap(int *, int, int);
+
+void *updateParticles(void *arg);
 
 /*---------------MAIN FUNCTION------------------*/
 
@@ -124,7 +138,7 @@ void initializeParticle(Particle *particle)
 // Function to Rank Particles and Best Solutions
 void rankPrticles(Particle *particle, Particle *global)
 {
-    double fit = cal_fitness(particle->position);
+    long fit = cal_fitness(particle->position);
     if (fit < particle->bestFit)
     {
         particle->bestFit = fit;
@@ -135,11 +149,26 @@ void rankPrticles(Particle *particle, Particle *global)
     }
     if (fit < global->bestFit)
     {
+        FILE *solf = fopen(sol_file, "w");
+
         global->bestFit = fit;
+
+        // I/O Section
+        printf("Best = %ld\n", fit);
+
+        // Write Best Found Solution into Disk
+        fprintf(solf, "\n\n\t\t\t\t----* %d x %d Matrix *----\n\n\n", D, D);
+        fprintf(solf, "\t  Best Fitness : %6ld | Optimum : %4d \n\n\nPATH:\n\n", fit, BEST_SOLUTION);
+
         for (int j = 0; j < D; j++)
         {
             global->bestPosition[j] = particle->position[j];
+            fprintf(solf, "%d  ", particle->position[j]);
         }
+
+        fprintf(solf, "\n\n\n================================\n\n\n");
+
+        fclose(solf);
     }
 }
 
@@ -154,6 +183,25 @@ void updateVelocity(Particle *particle, Particle *globalBest)
         particle->velocity[j] = vel - i_vel;
         // printf("\nnew velocity = %.4f", particle->velocity[j]);
     }
+}
+
+// Optimizing function
+
+void *updateParticles(void *arg)
+{
+    struct ThreadArgs *args = (struct ThreadArgs *)arg;
+    for (int i = args->startIndex; i < args->endIndex; i++)
+    {
+        // Update particle's velocity
+        updateVelocity(&(args->particles[i]), args->globalBest);
+
+        // Update particle's position
+        updatePosition(&(args->particles[i]));
+
+        // Rank Particles
+        rankPrticles(&(args->particles[i]), args->globalBest);
+    }
+    pthread_exit(NULL);
 }
 
 void updatePosition(Particle *Particle)
@@ -233,18 +281,6 @@ void InverseMutation(int *pos)
     reverse(pos, lower, upper);
 }
 
-void apply_3_opt(int *path, int i, int j, int k)
-{
-    // Apply the 3-opt move to the solution
-    int tmp_path[D];
-    memcpy(tmp_path, path, D * sizeof(int));
-
-    reverse(tmp_path, i + 1, j);
-    reverse(tmp_path, j + 1, k);
-
-    memcpy(path, tmp_path, D * sizeof(int));
-}
-
 void Simul_Annel_3_Opt(int *path, double temp, double cooling_rate)
 {
 
@@ -267,13 +303,14 @@ void Simul_Annel_3_Opt(int *path, double temp, double cooling_rate)
         int big = (i >= j && i >= k) ? i : ((j >= i && j >= k) ? j : k);
         int middle = (i != small && i != big) ? i : ((j != small && j != big) ? j : k);
 
-        // printf("\nEEntering 3-opt: i = %d, j = %d, k = %d", i, j, k);
-
-        apply_3_opt(tour, small, middle, big);
+        // ==== APPLY 3 OPT ALGORITHM ====
+        // apply_3_opt(tour, small, middle, big);
+        reverse(tour, small + 1, middle);
+        reverse(tour, middle + 1, big);
+        // ==== APPLY 3 OPT ALGORITHM ====
 
         long current_cost = cal_fitness(path);
         long new_cost = cal_fitness(tour);
-        // printf("\nAAAAAA");
         if (new_cost < current_cost)
             memcpy(path, tour, D * sizeof(int));
 
@@ -312,12 +349,15 @@ void pso()
     }
 
     // Main loop
-    for (int iter = 0; iter < MAX_ITER; iter++)
-    // int iter = 0;
-    // do
+    // for (int iter = 0; iter < MAX_ITER; iter++)
+
+    /**/
+    // long iter = 0;
+    do
     {
-#pragma omp parallel for // Using OpenMP for parallel computation
-        for (int i = 0; i < SWARM; i++)
+        int i;
+        #pragma omp parallel for private(i)
+        for (i = 0; i < SWARM; i++)
         {
             // Update particle's velocity
             updateVelocity(&particles[i], &globalBest);
@@ -328,11 +368,42 @@ void pso()
             // Rank Particles
             rankPrticles(&particles[i], &globalBest);
         }
-        printf("Itr = %d, Best = %ld\n", iter, globalBest.bestFit);
-        // iter++;
-#pragma omp barrier
-    }
-    // }while (globalBest.bestFit != 39);
+
+        // Print after each iteration
+        // #pragma omp single
+        // {
+        //     printf("Itr = %d, Best = %ld\n", iter, globalBest.bestFit);
+        //     iter++;
+        // }
+
+        // }
+    } while (globalBest.bestFit != BEST_SOLUTION);
+
+    // pthread_t threads[NUM_THREADS];
+    // struct ThreadArgs threadArgs[NUM_THREADS];
+
+    // do
+    // {
+    //     // Create threads
+    //     for (int i = 0; i < NUM_THREADS; i++)
+    //     {
+    //         threadArgs[i].particles = particles;
+    //         threadArgs[i].globalBest = &globalBest;
+    //         threadArgs[i].startIndex = i * (SWARM / NUM_THREADS);
+    //         threadArgs[i].endIndex = (i + 1) * (SWARM / NUM_THREADS);
+    //         pthread_create(&threads[i], NULL, updateParticles, (void *)&threadArgs[i]);
+    //     }
+
+    //     // Join threads
+    //     for (int i = 0; i < NUM_THREADS; i++)
+    //     {
+    //         pthread_join(threads[i], NULL);
+    //     }
+
+    //     // Print after each iteration
+    //     printf("Itr = %d, Best = %ld\n", iter, globalBest.bestFit);
+    //     iter++;
+    // } while (globalBest.bestFit != BEST_SOLUTION);
 
     // Print the best solution found
     printf("\nBest solution found with fitness: %ld\n\n\t", globalBest.bestFit);
