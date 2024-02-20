@@ -20,8 +20,8 @@
 #define NUM_THREADS 6 // Maximum Threads
 
 // File Paths
-const char *data_file = "/home/eternal/Documents/CodeSpace/bat-algorithm/Datasets/ftv170.txt";
-const char *sol_file = "/home/eternal/Documents/CodeSpace/pso-algorithm/tsp/solutions/ftv170-20-02-2024.txt";
+const char *data_file = "/home/team3/Tanmoy/pso-algorithm/datasets/ftv170.txt";
+const char *sol_file = "/home/team3/Tanmoy/pso-algorithm/tsp/solutions/ftv170-20-02-2024.txt";
 
 // Structure to hold a particle's position and velocity
 typedef struct
@@ -89,16 +89,17 @@ int **read_matrix(const char *data_file)
 
     // Allocate memory for the 2D array
     int **matrix = (int **)malloc(D * sizeof(int *));
-    for (int i = 0; i < D; i++)
+    int i, j;
+    for (i = 0; i < D; i++)
         matrix[i] = (int *)malloc(D * sizeof(int));
 
     // Reset file pointer to beginning
     fseek(file, 0L, SEEK_SET);
 
     // Read the matrix values
-    for (int i = 0; i < D; i++)
+    for (i = 0; i < D; i++)
     {
-        for (int j = 0; j < D; j++)
+        for (j = 0; j < D; j++)
             fscanf(file, "%d", &matrix[i][j]);
     }
 
@@ -111,7 +112,7 @@ int **read_matrix(const char *data_file)
 void initializeParticle(Particle *particle)
 {
     bool pos[D + 1] = {false}; // Initially make all false
-    int count = 0;
+    int count = 0, i;
     int upper = D - 1, lower = 0;
 
     // Randomly Generate Positions
@@ -126,7 +127,7 @@ void initializeParticle(Particle *particle)
         }
     }
 
-    for (int i = 0; i < D; i++)
+    for (i = 0; i < D; i++)
     {
         particle->velocity[i] = ((double)rand() / (double)(RAND_MAX)) * (1 - 0) + 0; // Between 0 and 1
         particle->bestPosition[i] = particle->position[i];
@@ -139,10 +140,11 @@ void initializeParticle(Particle *particle)
 void rankPrticles(Particle *particle, Particle *global)
 {
     long fit = cal_fitness(particle->position);
+    int j;
     if (fit < particle->bestFit)
     {
         particle->bestFit = fit;
-        for (int j = 0; j < D; j++)
+        for (j = 0; j < D; j++)
         {
             particle->bestPosition[j] = particle->position[j];
         }
@@ -160,7 +162,7 @@ void rankPrticles(Particle *particle, Particle *global)
         fprintf(solf, "\n\n\t\t\t\t----* %d x %d Matrix *----\n\n\n", D, D);
         fprintf(solf, "\t  Best Fitness : %6ld | Optimum : %4d \n\n\nPATH:\n\n", fit, BEST_SOLUTION);
 
-        for (int j = 0; j < D; j++)
+        for (j = 0; j < D; j++)
         {
             global->bestPosition[j] = particle->position[j];
             fprintf(solf, "%d  ", particle->position[j]);
@@ -174,7 +176,8 @@ void rankPrticles(Particle *particle, Particle *global)
 
 void updateVelocity(Particle *particle, Particle *globalBest)
 {
-    for (int j = 0; j < D; j++)
+    int j;
+    for (j = 0; j < D; j++)
     {
         double r1 = (double)rand() / RAND_MAX;
         double r2 = (double)rand() / RAND_MAX;
@@ -190,7 +193,8 @@ void updateVelocity(Particle *particle, Particle *globalBest)
 void *updateParticles(void *arg)
 {
     struct ThreadArgs *args = (struct ThreadArgs *)arg;
-    for (int i = args->startIndex; i < args->endIndex; i++)
+    int i;
+    for (i = args->startIndex; i < args->endIndex; i++)
     {
         // Update particle's velocity
         updateVelocity(&(args->particles[i]), args->globalBest);
@@ -207,7 +211,8 @@ void *updateParticles(void *arg)
 void updatePosition(Particle *Particle)
 {
     float max_vel = 0;
-    for (int k = 0; k < D; k++)
+    int k;
+    for (k = 0; k < D; k++)
     {
         max_vel = (Particle->velocity[k] > max_vel) ? Particle->velocity[k] : max_vel;
     }
@@ -226,7 +231,8 @@ void updatePosition(Particle *Particle)
 long cal_fitness(int pos[])
 {
     long fit = 0;
-    for (int i = 0; i < D - 1; i++)
+    int i;
+    for (i = 0; i < D - 1; i++)
     {
         assert(pos[i] != pos[i + 1]);
         if (pos[i] != pos[i + 1])
@@ -335,14 +341,14 @@ void pso()
 {
     // Read Matrix from file
     matrix = read_matrix(data_file);
-
+    int i;
     // Initialization
     Particle particles[SWARM];
     Particle globalBest;
     globalBest.bestFit = __INT64_MAX__;
 
     // Rank the Particles and Find Local & Global Best
-    for (int i = 0; i < SWARM; i++)
+    for (i = 0; i < SWARM; i++)
     {
         initializeParticle(&particles[i]);
         rankPrticles(&particles[i], &globalBest);
@@ -355,7 +361,6 @@ void pso()
     // long iter = 0;
     do
     {
-        int i;
         #pragma omp parallel for private(i)
         for (i = 0; i < SWARM; i++)
         {
@@ -385,7 +390,7 @@ void pso()
     // do
     // {
     //     // Create threads
-    //     for (int i = 0; i < NUM_THREADS; i++)
+    //     for (i = 0; i < NUM_THREADS; i++)
     //     {
     //         threadArgs[i].particles = particles;
     //         threadArgs[i].globalBest = &globalBest;
@@ -395,7 +400,7 @@ void pso()
     //     }
 
     //     // Join threads
-    //     for (int i = 0; i < NUM_THREADS; i++)
+    //     for (i = 0; i < NUM_THREADS; i++)
     //     {
     //         pthread_join(threads[i], NULL);
     //     }
@@ -407,7 +412,7 @@ void pso()
 
     // Print the best solution found
     printf("\nBest solution found with fitness: %ld\n\n\t", globalBest.bestFit);
-    for (int i = 0; i < D; i++)
+    for (i = 0; i < D; i++)
     {
         printf("%d ", globalBest.bestPosition[i]);
     }
