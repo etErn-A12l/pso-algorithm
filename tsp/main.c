@@ -4,16 +4,19 @@
 #include <math.h>
 #include <time.h>
 #include <omp.h>
+#include <assert.h>
+#include <string.h>
 
 #define SWARM 10 // Number of particles
-#define D 10     // Number of dimensions
-#define MAX_ITER 100
-#define W 0.5 // Inertia Weight
-#define C1 2  // Acceleration Factor
-#define C2 2  // Acceleration Factor
+#define D 17     // Number of dimensions
+#define MAX_ITER 10000
+#define W 0.5    // Inertia Weight
+#define C1 2     // Acceleration Factor
+#define C2 2     // Acceleration Factor
+#define TEMP 100 // Initial Temperature
 
 // File Paths
-const char *data_file = "/home/xron/Drives/Docs_And_Media/Documents/Everything/Code-More/Application Development/Programming Languages/C/Others/HK mam TSP Prob 2/Datasets/ftv55.txt";
+const char *data_file = "/home/eternal/Documents/CodeSpace/bat-algorithm/Datasets/br17.txt";
 const char *sol_file = "/home/xron/Drives/Docs_And_Media/Documents/Everything/Code-More/Application Development/Programming Languages/C/Others/HK mam TSP Prob 2/Solutions/ftv55_sol.txt";
 
 // Structure to hold a particle's position and velocity
@@ -26,25 +29,30 @@ typedef struct
 } Particle;
 
 // Global variables
-int **matrix;
+int **matrix; // Cost Matrix
 
 //======== Function Declarations ===========
 /*--------------------------------------*/
 
 void initializeParticle(Particle *);
 void rankPrticles(Particle *, Particle *);
-double evaluateFitness(int *);
 void updateVelocity(Particle *, Particle *);
 void updatePosition(Particle *);
 int **read_matrix(const char *);
-long cal_fitness(int []);
+long cal_fitness(int[]);
 void pso();
+
+void reverse(int *, int, int);
+void apply_3_opt(int *, int, int, int);
+void Simul_Annel_3_Opt(int *, double, double);
+void InverseMutation(int *);
+void swap(int *, int, int);
 
 /*---------------MAIN FUNCTION------------------*/
 
 int main(int argc, char const *argv[])
 {
-    srand(time(NULL));
+    srand(1);
     pso();
     return 0;
 }
@@ -81,6 +89,7 @@ int **read_matrix(const char *data_file)
     }
 
     fclose(file);
+
     return matrix;
 }
 
@@ -109,7 +118,7 @@ void initializeParticle(Particle *particle)
         particle->bestPosition[i] = particle->position[i];
     }
 
-    particle->bestFit = INFINITY;
+    particle->bestFit = __INT64_MAX__;
 }
 
 // Function to Rank Particles and Best Solutions
@@ -140,21 +149,28 @@ void updateVelocity(Particle *particle, Particle *globalBest)
     {
         double r1 = (double)rand() / RAND_MAX;
         double r2 = (double)rand() / RAND_MAX;
-        particle->velocity[j] = W * particle->velocity[j] + C1 * r1 * (particle->bestPosition[j] - particle->position[j]) + C2 * r2 * (globalBest->bestPosition[j] - particle->position[j]);
+        float vel = W * particle->velocity[j] + C1 * r1 * (particle->bestPosition[j] - particle->position[j]) + C2 * r2 * (globalBest->bestPosition[j] - particle->position[j]);
+        int i_vel = (int)vel;
+        particle->velocity[j] = vel - i_vel;
+        // printf("\nnew velocity = %.4f", particle->velocity[j]);
     }
 }
 
-void updatePosition(Particle *particle)
+void updatePosition(Particle *Particle)
 {
-    for (int j = 0; j < D; j++)
+    float max_vel = 0;
+    for (int k = 0; k < D; k++)
     {
-        particle->position[j] += particle->velocity[j]; // Xi ^ (t+1) = (Xi ^ t) + (Vi ^ t)
+        max_vel = (Particle->velocity[k] > max_vel) ? Particle->velocity[k] : max_vel;
+    }
 
-        if (particle->position[j] < -5.0) // Checking Minimum Value
-            particle->position[j] = 0.0;
+    Simul_Annel_3_Opt(Particle->position, TEMP, max_vel);
 
-        else if (particle->position[j] > 5.0) // Checking Maximum Value
-            particle->position[j] = 1.0;
+    long new_fit = cal_fitness(Particle->position);
+
+    if (Particle->bestFit < new_fit)
+    {
+        InverseMutation(Particle->position);
     }
 }
 
@@ -172,6 +188,111 @@ long cal_fitness(int pos[])
     return fit;
 }
 
+// ===================================
+
+void reverse(int *tour, int i, int j)
+{
+    if (i < j)
+    {
+        while (i < j)
+        {
+            swap(tour, i, j);
+            i++;
+            j--;
+        }
+    }
+    else
+    {
+        int prev_low = i;
+        while (prev_low != j)
+        {
+            swap(tour, i, j);
+            i = (i + 1) % D;
+            if (j - 1 == -1)
+                j = D - 1;
+            else
+                --j;
+        }
+    }
+}
+
+void swap(int *pos, int i, int j)
+{
+    int temp = pos[i];
+    pos[i] = pos[j];
+    pos[j] = temp;
+}
+
+void InverseMutation(int *pos)
+{
+    int lower = rand() % D, upper = rand() % D;
+
+    while (lower == upper)
+        upper = rand() % D;
+
+    reverse(pos, lower, upper);
+}
+
+void apply_3_opt(int *path, int i, int j, int k)
+{
+    // Apply the 3-opt move to the solution
+    int tmp_path[D];
+    memcpy(tmp_path, path, D * sizeof(int));
+
+    reverse(tmp_path, i + 1, j);
+    reverse(tmp_path, j + 1, k);
+
+    memcpy(path, tmp_path, D * sizeof(int));
+}
+
+void Simul_Annel_3_Opt(int *path, double temp, double cooling_rate)
+{
+
+    int tour[D];
+    memcpy(tour, path, D * sizeof(int));
+    while (temp > 1)
+    {
+        // Generate a new solution by applying a 3-opt move
+        int i = rand() % (D - 1);
+        int j = rand() % (D - 1);
+        int k = rand() % (D - 1);
+
+        while (i == j || j == k || i == k)
+        {
+            j = rand() % (D - 1);
+            k = rand() % (D - 1);
+        }
+
+        int small = (i <= j && i <= k) ? i : ((j <= i && j <= k) ? j : k);
+        int big = (i >= j && i >= k) ? i : ((j >= i && j >= k) ? j : k);
+        int middle = (i != small && i != big) ? i : ((j != small && j != big) ? j : k);
+
+        // printf("\nEEntering 3-opt: i = %d, j = %d, k = %d", i, j, k);
+
+        apply_3_opt(tour, small, middle, big);
+
+        long current_cost = cal_fitness(path);
+        long new_cost = cal_fitness(tour);
+        // printf("\nAAAAAA");
+        if (new_cost < current_cost)
+            memcpy(path, tour, D * sizeof(int));
+
+        else
+        {
+            double p = exp((current_cost - new_cost) / temp);
+            if ((double)rand() / RAND_MAX < p)
+                memcpy(path, tour, D * sizeof(int));
+
+            // else
+            //     memcpy(tour, path, D * sizeof(int));
+        }
+
+        temp *= cooling_rate;
+    }
+}
+
+// ===================================
+
 // PSO function
 void pso()
 {
@@ -181,7 +302,7 @@ void pso()
     // Initialization
     Particle particles[SWARM];
     Particle globalBest;
-    globalBest.bestFit = INFINITY;
+    globalBest.bestFit = __INT64_MAX__;
 
     // Rank the Particles and Find Local & Global Best
     for (int i = 0; i < SWARM; i++)
@@ -190,29 +311,34 @@ void pso()
         rankPrticles(&particles[i], &globalBest);
     }
 
-// Main loop
-#pragma omp parallel for schedule(static) // Using OpenMP for parallel computation
+    // Main loop
     for (int iter = 0; iter < MAX_ITER; iter++)
+    // int iter = 0;
+    // do
     {
+#pragma omp parallel for // Using OpenMP for parallel computation
         for (int i = 0; i < SWARM; i++)
         {
-            // Update particle's position
-            updatePosition(&particles[i]);
-
             // Update particle's velocity
             updateVelocity(&particles[i], &globalBest);
+
+            // Update particle's position
+            updatePosition(&particles[i]);
 
             // Rank Particles
             rankPrticles(&particles[i], &globalBest);
         }
-        printf("Itr = %d, Best = %f\n", iter, globalBest.bestFit);
+        printf("Itr = %d, Best = %ld\n", iter, globalBest.bestFit);
+        // iter++;
+#pragma omp barrier
     }
+    // }while (globalBest.bestFit != 39);
 
     // Print the best solution found
-    printf("\nBest solution found with fitness: %lf\n\n\t", globalBest.bestFit);
+    printf("\nBest solution found with fitness: %ld\n\n\t", globalBest.bestFit);
     for (int i = 0; i < D; i++)
     {
-        printf("%.3f ", globalBest.bestPosition[i]);
+        printf("%d ", globalBest.bestPosition[i]);
     }
     printf("\n");
 }
@@ -226,3 +352,5 @@ void pso()
 5. Increase iteration
 
 */
+
+// gcc main.c -fopenmp -lm -o code
