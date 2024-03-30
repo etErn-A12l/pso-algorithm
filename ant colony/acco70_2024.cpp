@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
-#define node 70
+#define node 56
 #define nk 20
 #define nit 4000
 
@@ -39,7 +39,7 @@ int main()
 		evaporation();
 		pheromore_update();
 	}
-	fptr = fopen("result", "w");
+	fptr = fopen("/home/eternal/Documents/CodeSpace/pso-algorithm/datasets/temp_ans.txt", "w");
 	for (k = 0; k < nk; k++)
 	{
 		val = 0.0;
@@ -108,31 +108,81 @@ start:
 		}
 	end:;
 	}
-	if (cheak_constraint(k) == 0)
-	{
-		if (count++ < 200)
-			goto start;
-		else
-		{
-			printf("\n Exit from path Construct");
-			exit(0);
-		}
-	}
 }
+// 	if (cheak_constraint(k) == 0)
+// 	{
+// 		if (count++ < 200)
+// 			goto start;
+// 		else
+// 		{
+// 			printf("\n Exit from path Construct");
+// 			exit(0);
+// 		}
+// 	}
+// }
+
+// void construct_path(int k)
+// {
+// 	int i, j, l, n_list[node], count = 0;
+// 	float p[node], sum = 0, val;
+// 	bool done = false;
+
+// 	for (i = 0; i < node - 1; i++)
+// 		n_list[i] = i + 1;
+// 	PATH[k][0] = 0;
+
+// 	while (!done)
+// 	{
+// 		sum = 0;
+// 		for (j = 0; j < node - i; j++)
+// 			sum += pow(TOU[PATH[k][i - 1]][n_list[j]], alpha);
+// 		for (j = 0; j < node - i; j++)
+// 			p[j] = pow(TOU[PATH[k][i - 1]][n_list[j]], alpha) / sum;
+// 		sum = 0;
+// 		for (j = 0; j < node - i; j++)
+// 			sum += p[j];
+// 		for (j = 0; j < node - i; j++)
+// 			p[j] = p[j] + p[j - 1];
+// 		val = rnd();
+// 		for (j = 0; j < node - i; j++)
+// 		{
+// 			if (val < p[j])
+// 			{
+// 				PATH[k][i] = n_list[j];
+// 				for (l = j; l < node - i; l++)
+// 					n_list[l] = n_list[l + 1];
+// 				if (cheak_constraint(k) == 0)
+// 				{
+// 					if (count++ < 200)
+// 						break;
+// 					else
+// 					{
+// 						printf("\n Exit from path Construct");
+// 						exit(0);
+// 					}
+// 				}
+// 				done = true;
+// 				break;
+// 			}
+// 		}
+// 	}
+// }
 
 int cheak_constraint(int k)
 {
-	int x[node], i;
-	float val = 0.0;
-	for (i = 0; i < node; i++)
-		x[i] = PATH[k][i];
-	for (i = 0; i < node - 1; i++)
-		val += safety[x[i]][x[i + 1]];
-	val += safety[x[node - 1]][x[0]];
-	if (val > ita)
-		return 1;
-	else
-		return 0;
+	// int x[node], i;
+	// float val = 0.0;
+	// for (i = 0; i < node; i++)
+	// 	x[i] = PATH[k][i];
+	// for (i = 0; i < node - 1; i++)
+	// 	val += safety[x[i]][x[i + 1]];
+	// val += safety[x[node - 1]][x[0]];
+	// if (val > ita)
+	// 	return 1;
+	// else
+	// 	return 0;
+
+	return 1;
 }
 
 float rnd()
@@ -168,7 +218,6 @@ float randval(float a, float b)
 	return a + ((rand() % 1000) / 1000.) * (b - a);
 }
 
-
 float cost(int k)
 {
 	int i;
@@ -188,27 +237,44 @@ float cost(int k)
 void createfile()
 {
 	int a = 0, j;
-	float ta[70], t;
+	float ta[node], t;
 	int i;
 	int count = 0;
 
-	fptr = fopen("e:\\ft701.txt", "r");
-	fptr1 = fopen("e:\\ft701read.txt", "w");
-	while (fscanf(fptr, "%d ", &i) != EOF)
-	{
-		printf("%d\t", i);
-		fprintf(fptr1, "%d\t", i);
-		t = (float)i;
-		ta[count] = t;
-		count++;
+	fptr = fopen("/home/eternal/Documents/CodeSpace/pso-algorithm/datasets/ftv55.txt", "r");
+	fptr1 = fopen("/home/eternal/Documents/CodeSpace/pso-algorithm/datasets/temp.txt", "w");
+	// while (fscanf(fptr, "%d ", &i) != EOF)
+	// {
+	// 	printf("%d\t", i);
+	// 	fprintf(fptr1, "%d\t", i);
+	// 	t = (float)i;
+	// 	ta[count] = t;
+	// 	count++;
 
-		if (count == 70)
+	// 	if (count == node)
+	// 	{
+	// 		fprintf(fptr1, "\n");
+	// 		count = 0;
+	// 		for (j = 0; j < node; j++)
+	// 			COST[a][j] = ta[j];
+	// 		a++;
+	// 	}
+	// }
+
+	// Reset file pointer to beginning
+	fseek(fptr, 0L, SEEK_SET);
+
+	int **matrix = (int **)malloc(node * sizeof(int *));
+	for (i = 0; i < node; i++)
+		matrix[i] = (int *)malloc(node * sizeof(int));
+
+	// Read the matrix values
+	for (i = 0; i < node; i++)
+	{
+		for (j = 0; j < node; j++)
 		{
-			fprintf(fptr1, "\n");
-			count = 0;
-			for (j = 0; j < 70; j++)
-				COST[a][j] = ta[j];
-			a++;
+			fscanf(fptr, "%d", &matrix[i][j]);
+			COST[i][j] = matrix[i][j];
 		}
 	}
 
