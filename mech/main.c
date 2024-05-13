@@ -9,19 +9,19 @@
 #include <string.h>
 
 #define SWARM 10 // Number of particles
-#define D 71     // Number of dimensions
+#define D 17     // Number of dimensions
 #define MAX_ITER 10000
-#define W 0.5              // Inertia Weight
-#define C1 2               // Acceleration Factor
-#define C2 2               // Acceleration Factor
-#define TEMP 100           // Initial Temperature
-#define BEST_SOLUTION 1950 // Initial Temperature
+#define W 0.5            // Inertia Weight
+#define C1 2             // Acceleration Factor
+#define C2 2             // Acceleration Factor
+#define TEMP 100         // Initial Temperature
+#define BEST_SOLUTION 39 // Initial Temperature
 
 #define NUM_THREADS 6 // Maximum Threads
 
 // File Paths
-const char *data_file = "/home/eternal/Documents/pso-algorithm/datasets/ftv70.txt";
-const char *sol_file = "/home/eternal/Documents/pso-algorithm/mech/solution/70.txt";
+const char *data_file = "/home/eternal/Documents/pso-algorithm/datasets/br17.txt";
+const char *sol_file = "/home/eternal/Documents/pso-algorithm/mech/solution/17.txt";
 
 // Structure to hold a particle's position and velocity
 typedef struct
@@ -269,22 +269,23 @@ void updatePosition(Particle *particle, Particle *globalBest)
 
     long new_fit = cal_fitness(particle->position);
 
-    // if (particle->bestFit < new_fit)
-    // {
-    //     construct_path(particle->position);
-    // }
+    if (particle->bestFit < new_fit)
+    {
+        printf("\nAnt ()\n");
+        construct_path(particle->position);
+    }
+
+    new_fit = cal_fitness(particle->position);
+    if (particle->bestFit < new_fit)
+    {
+        printf("\nMech ()\n");
+        updateUsingMech(particle, globalBest);
+    }
 
     // if (particle->bestFit < new_fit)
     // {
     //     InverseMutation(particle->position);
     // }
-
-    // new_fit = cal_fitness(particle->position);
-
-    if (particle->bestFit < new_fit)
-    {
-        updateUsingMech(particle, globalBest);
-    }
 }
 
 // Function to evaluate a particle's fitness
@@ -434,10 +435,10 @@ void pso()
         }
 
         // Ant Colony
-        // evaporation();
+        evaporation();
 
-        // for (i = 0; i < SWARM; i++)
-        //     pheromore_update(&particles[i]);
+        for (i = 0; i < SWARM; i++)
+            pheromore_update(&particles[i]);
 
         // Print after each iteration
         // #pragma omp single
