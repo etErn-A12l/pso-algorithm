@@ -9,21 +9,21 @@
 #include <time.h>
 
 #define SWARM 10 // Number of particles
-#define D 71      // Number of dimensions
+#define D 171     // Number of dimensions
 #define MAX_ITER 10000
 #define W 0.5    // Inertia Weight
 #define C1 2     // Acceleration Factor
 #define C2 2     // Acceleration Factor
 #define TEMP 100 // Initial Temperature
-#define BEST_SOLUTION 1286
+#define BEST_SOLUTION 2755
 
-int count = 0;
+long count = 0;
 
 #define NUM_THREADS 6 // Maximum Threads
 
 // File Paths
-const char *data_file = "/home/eternal/Documents/pso-algorithm/datasets/ftv70.txt";
-const char *sol_file = "/home/eternal/Documents/pso-algorithm/mech/solution/70.txt";
+const char *data_file = "/home/user/gcc-python/PSO/dataset/ftv170.txt";
+const char *sol_file = "/home/user/gcc-python/PSO/solution/ftv170_sol.txt";
 
 // Structure to hold a particle's position and velocity
 typedef struct {
@@ -82,11 +82,12 @@ void addCity(int *, int *, int);
 // ===================================
 
 bool check_possibility(int pos[], int i, int j);
+void super_position(int *);
 
 /*---------------MAIN FUNCTION------------------*/
 
 int main(int argc, char const *argv[]) {
-  srand(1);
+  srand(time(NULL));
   pso();
   return 0;
 }
@@ -167,13 +168,14 @@ void rankPrticles(Particle *particle, Particle *global) {
     for (j = 0; j < D; j++)
       particle->bestPosition[j] = particle->position[j];
   }
+  
   if (fit < global->bestFit) {
     FILE *solf = fopen(sol_file, "w");
 
     global->bestFit = fit;
 
-    // I/O Section
-    printf("Count = %d || Best = %ld\n", count, fit);
+    printf("\r| ITERATION -> %ld | FITNESS -> %ld <- |", count, fit);
+    fflush(stdout); // Flush the output buffer
 
     // Write Best Found Solution into Disk
     fprintf(solf, "\n\n\t\t\t\t----* %d x %d Matrix *----\n\n\n", D, D);
@@ -236,60 +238,56 @@ void *updateParticles(void *arg) {
 
 void updatePosition(Particle *Particle) {
 
-  for (int i = 0; i < D; i++) {
-    for (int j = i + 1; j < D; j++) {
-      if (Particle->position[i] == Particle->position[j]) {
-        printf("\n\n *** ERRROR ***\n");
-      }
-    }
-  }
+  // for (int i = 0; i < D; i++) {
+  //   for (int j = i + 1; j < D; j++) {
+  //     if (Particle->position[i] == Particle->position[j]) {
+  //       printf("\n\n *** ERRROR ***\n");
+  //     }
+  //   }
+  // }
 
   int newPosition1[D];
 
   // 1. Updating using Mechs
-//   new_mech(Particle->position, Particle->velocity, newPosition1);
-//   memcpy(newPosition1, Particle->position, D * sizeof(int));
+  new_mech(Particle->position, Particle->velocity, newPosition1);
+  memcpy(newPosition1, Particle->position, D * sizeof(int));
 
   long new_fit = cal_fitness(Particle->position);
 
-//   if (Particle->bestFit > new_fit) {
-//     return;
-//   }
+  if (Particle->bestFit > new_fit) {
+    // printf("\n MECH Worked !");
+    return;
+  }
 
   // 2. Updating using Simulated Annealing
   Simul_Annel_3_Opt(Particle->position, TEMP, 0.99);
 
   new_fit = cal_fitness(Particle->position);
 
-  if (Particle->bestFit > new_fit)
+  if (Particle->bestFit > new_fit) {
+    // printf("\n 3 OPT Worked !");
     return;
+  }
 
-//   // 3. Updating using Inverse Mutation
-//   int new_pos[D];
-//   InverseMutation(Particle->position, new_pos);
-//   memcpy(Particle->position, new_pos, D * sizeof(int));
+  // 3. Updating using Inverse Mutation
+  // int new_pos[D];
+  // InverseMutation(Particle->position, new_pos);
+  // memcpy(Particle->position, new_pos, D * sizeof(int));
 
-//   new_fit = cal_fitness(Particle->position);
-//   if (Particle->bestFit > new_fit)
-//     return;
+  // new_fit = cal_fitness(Particle->position);
+  // if (Particle->bestFit > new_fit)
+  //   return;
 
   // 4. Updating using faaak
 
-  int i, j;
-  for (i = 1; i < D - 1; i++) {
-    for (j = i + 1; j < D; j++) {
-      if (check_possibility(Particle->position, i, j)) {
-        swap(Particle->position, i, j);
-      }
-    }
-  }
+  super_position(Particle->position);
 
-//   new_fit = cal_fitness(Particle->position);
+  // new_fit = cal_fitness(Particle->position);
 
-//   if (Particle->bestFit > new_fit)
-//     return;
+  // if (Particle->bestFit > new_fit)
+  //   return;
 
-//   construct_path(Particle->position);
+  // construct_path(Particle->position);
 
   // new_fit = cal_fitness(Particle->position);
 
@@ -410,6 +408,8 @@ void pso() {
   Particle globalBest;
   globalBest.bestFit = __INT64_MAX__;
 
+  printf("\n======================= Made By 0000 ========================\n\n\n");
+
   // Rank the Particles and Find Local & Global Best
   for (i = 0; i < SWARM; i++) {
     initializeParticle(&particles[i]);
@@ -488,15 +488,15 @@ void pso() {
 
 // ===================================
 
-void initialize_tou()
-{
-    int i, j;
-    for (i = 0; i < D; i++)
-        for (j = 0; j < D; j++) {
-            printf(" %d", matrix[i][j]);
-            tou[i][j] = 1.0 / matrix[i][j];
-        }
-}
+// void initialize_tou()
+// {
+//     int i, j;
+//     for (i = 0; i < D; i++)
+//         for (j = 0; j < D; j++) {
+//             printf(" %d", matrix[i][j]);
+//             tou[i][j] = 1.0 / matrix[i][j];
+//         }
+// }
 
 void construct_path(int *PATH) {
   int i, j, l, n_list[D], count = 0;
@@ -698,7 +698,7 @@ void updateUsingMech(Particle *particle, Particle *globalBest) {
 
 bool check_possibility(int pos[], int i, int j) {
   // Ensure i and j are within valid bounds
-  if (i <= 0 || i >= D - 1 || j <= 0 || j >= D - 1 || i == j) {
+  if (i < 0 || i >= D - 1 || j <= 0 || j >= D - 1 || i == j) {
     return false; // Invalid indices
   }
 
@@ -706,22 +706,42 @@ bool check_possibility(int pos[], int i, int j) {
   for (int k = 0; k < D; k++)
     temp_array[k] = pos[k];
 
-  int i_cost = matrix[pos[i - 1]][pos[i]] + matrix[pos[i]][pos[(i + 1) % D]];
+  int i_cost = matrix[pos[i]][pos[(i + 1) % D]];
   int j_cost = matrix[pos[j - 1]][pos[j]] + matrix[pos[j]][pos[(j + 1) % D]];
   int old_cost = i_cost + j_cost;
 
+  if (i != 0) {
+    old_cost += matrix[pos[i - 1]][pos[i]];
+  }
+
   swap(temp_array, i, j);
 
-  i_cost = matrix[temp_array[i - 1]][temp_array[i]] +
-           matrix[temp_array[i]][temp_array[(i + 1) % D]];
+  i_cost = matrix[temp_array[i]][temp_array[(i + 1) % D]];
   j_cost = matrix[temp_array[j - 1]][temp_array[j]] +
            matrix[temp_array[j]][temp_array[(j + 1) % D]];
   int new_cost = i_cost + j_cost;
 
-  // printf("\n old_cost: %d, new_cost: %d\n", old_cost, new_cost);
+  if (i != 0) {
+    new_cost += matrix[temp_array[i - 1]][temp_array[i]];
+  }
 
   return new_cost < old_cost;
 }
+
+void super_position(int *path) {
+  int i, j, k = 0;
+  // while (k++ < 100) { // Just running 100 iterations
+  for (i = 0; i < D - 1; i++) {
+    for (j = i + 1; j < D; j++) {
+      if (check_possibility(path, i, j)) {
+        swap(path, i, j);
+      }
+    }
+  }
+  // }
+}
+
+// printf("\n old_cost: %d, new_cost: %d\n", old_cost, new_cost);
 
 /*
 
